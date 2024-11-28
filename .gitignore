@@ -34,3 +34,26 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Ignore build and intermediate files
+/android/app/build/
+/android/.gradle/
+/android/.idea/
+/android/local.properties
+/android/app/debug.keystore
+
+# Ignore generated files
+/android/app/intermediates/
+/android/app/outputs/
+/android/app/generated/
+/android/captures/
+/android/.cxx/
+
+# Ignore Gradle wrapper binaries (optional, you can include them if necessary)
+/android/gradle/wrapper/gradle-wrapper.jar
+
+# Ignore logs and temporary files
+*.log
+*.lock
+*.tmp
+*.temp
