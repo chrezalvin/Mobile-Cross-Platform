@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "288974950371",
+    "firebase_url": "https://chrez-bot-default-rtdb.firebaseio.com",
+    "project_id": "chrez-bot",
+    "storage_bucket": "chrez-bot.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:288974950371:android:067b5a2413a756e08f5ad6",
+        "android_client_info": {
+          "package_name": "com.chrealvin.testingapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4m-G8zkFJ4psFLN5Dm46nv9jXQYxWduI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

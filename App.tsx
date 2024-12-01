@@ -1,15 +1,69 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Button, Image, PermissionsAndroid, Platform, StyleSheet, Text, View } from 'react-native';
-import { DownloadDirectoryPath, readFile, writeFile } from 'react-native-fs';
+import { DownloadDirectoryPath, readFile, uploadFiles, writeFile } from 'react-native-fs';
 import { ImagePickerResponse, launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Geolocation, { GeolocationResponse } from "@react-native-community/geolocation";
+import { addDoc, collection } from 'firebase/firestore';
+import { firestoreDB, storage } from './fbConfig';
+import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
 const noImage = require("./assets/no_img.jpg");
+
+interface FBData {
+  first: string;
+  last: string;
+  born: number;
+  imageUrl?: string;
+  lat?: number;
+  long?: number;
+}
 
 export default function App() {
   const [uri, setUri] = useState<string | null>(null);
   const [coords, setCoords] = useState<GeolocationResponse["coords"] | null>(null);
- 
+
+  const addData = async() => {
+    try{
+      const data: FBData = {
+        first: "Chrez",
+        last: "Alvin",
+        born: 2001,
+      };
+
+      // if uri is defined, add to storage first then use the download url
+      if(uri){
+        console.log("Uploading image to storage...");
+        
+        console.log(`reading file: ${uri}`);
+        const ext = uri?.split(".").pop();
+        const file = await fetch(uri);
+        const fileBlob = await file.blob();
+        
+        const imgRef = ref(storage, `test-app/newImage.${ext}`);
+        
+        console.log("uploading file...");
+        const imgUrl = await uploadBytes(imgRef, fileBlob, {contentType: `image/${ext}`});
+        console.log("File uploaded to storage: " + imgUrl.ref.fullPath);
+        
+        data.imageUrl = await getDownloadURL(imgUrl.ref);
+
+        console.log("Image uploaded to storage: " + data.imageUrl);
+      }
+
+      if(coords){
+        data.lat = coords.latitude;
+        data.long = coords.longitude;
+      }
+
+      const docRef = await addDoc(collection(firestoreDB, "users"), data);
+
+      console.log("Document written with ID: ", docRef.id);
+    }
+    catch(err){
+      console.error("Error adding document: ", err);
+    }
+  }
+  
   const hasLocationPermission = async () => {
     // android below 23 doesn't need permission
     if(Platform.OS === "android" && Platform.Version < 23)
@@ -206,7 +260,7 @@ export default function App() {
       <Button title="GET LOCATION" onPress={getLocation} />
       <Button title="OPEN CAMERA" onPress={requestCameraPermission} />
       <Button title="OPEN GALERY" onPress={openImagePicker} />
-      <Button title="SAVE FILE" onPress={requestManageStoragePermission} />
+      <Button title="SAVE FILE" onPress={addData} />
       <Button title="CLEAR" onPress={() => setUri(null)} />
       <StatusBar style="auto" />
     </View>
