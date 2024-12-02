@@ -7,6 +7,8 @@ import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
 import { firestoreDB, storage } from './fbConfig';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { addListenerOnNotification, registerForPushNotificationsAsync, sendPushNotification } from './notificationConfig';
+import { Provider } from 'react-redux';
+import { addFailed, addSuccess, store, useAppDispatch, useAppSelector } from './redux';
 
 const noImage = require("./assets/no_img.jpg");
 
@@ -19,7 +21,10 @@ interface FBData {
   long?: number;
 }
 
-export default function App() {
+function App() {
+  const dispatch = useAppDispatch();
+  const attemptCounter = useAppSelector(state => state.attemptCounter);
+
   const [uri, setUri] = useState<string | null>(null);
   const [coords, setCoords] = useState<GeolocationResponse["coords"] | null>(null);
   const [notificationToken, setNotificationToken] = useState<string | null>(null);
@@ -80,10 +85,11 @@ export default function App() {
 
       const docRef = await addDoc(collection(firestoreDB, "users"), data);
       const insertedData = await getDoc(doc(firestoreDB, "users", docRef.id));
+      dispatch(addFailed());
 
       if(notificationToken && insertedData.exists()){
         console.log(`data: ${JSON.stringify(insertedData.data())}`);
-        sendPushNotification(notificationToken, insertedData.data());
+        sendPushNotification(notificationToken, `${attemptCounter.successAttempts} success attempts, ${attemptCounter.failedAttempts} failed attempts`);
       }
       else
         console.log("No notification token found, unable to send notification");
@@ -91,6 +97,7 @@ export default function App() {
       console.log("Document written with ID: ", docRef.id);
     }
     catch(err){
+      dispatch(addSuccess());
       console.error("Error adding document: ", err);
     }
   }
@@ -240,3 +247,11 @@ const styles = StyleSheet.create({
     gap: 5,
   },
 });
+
+export default function ReduxWrapper(){
+  return (
+    <Provider store={store}>
+      <App />
+    </Provider>
+  );
+}
