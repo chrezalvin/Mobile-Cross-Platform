@@ -1,12 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Image, PermissionsAndroid, Platform, StyleSheet, Text, View } from 'react-native';
-import { DownloadDirectoryPath, readFile, uploadFiles, writeFile } from 'react-native-fs';
 import { ImagePickerResponse, launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Geolocation, { GeolocationResponse } from "@react-native-community/geolocation";
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
 import { firestoreDB, storage } from './fbConfig';
-import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { addListenerOnNotification, registerForPushNotificationsAsync, sendPushNotification } from './notificationConfig';
+
 const noImage = require("./assets/no_img.jpg");
 
 interface FBData {
@@ -21,9 +22,31 @@ interface FBData {
 export default function App() {
   const [uri, setUri] = useState<string | null>(null);
   const [coords, setCoords] = useState<GeolocationResponse["coords"] | null>(null);
+  const [notificationToken, setNotificationToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function notify(){
+      const token = await registerForPushNotificationsAsync();
+
+      if(token)
+        console.log("Notification token: " + token);
+      else
+        console.log("No notification token found");
+
+      setNotificationToken(token ?? null);
+    }
+
+    notify();
+  })
 
   const addData = async() => {
     try{
+      // listener for notification when the app is open
+      addListenerOnNotification((unsubscribe) => {
+        console.log("Unsubscribing...");
+        unsubscribe();
+      });
+
       const data: FBData = {
         first: "Chrez",
         last: "Alvin",
@@ -56,6 +79,14 @@ export default function App() {
       }
 
       const docRef = await addDoc(collection(firestoreDB, "users"), data);
+      const insertedData = await getDoc(doc(firestoreDB, "users", docRef.id));
+
+      if(notificationToken && insertedData.exists()){
+        console.log(`data: ${JSON.stringify(insertedData.data())}`);
+        sendPushNotification(notificationToken, insertedData.data());
+      }
+      else
+        console.log("No notification token found, unable to send notification");
 
       console.log("Document written with ID: ", docRef.id);
     }
@@ -116,36 +147,6 @@ export default function App() {
     // get location
   }
 
-  const saveLocation = async (location: GeolocationResponse["coords"]) => {
-    try{
-      const path = `${DownloadDirectoryPath}/location.txt`;
-
-      await writeFile(path, JSON.stringify(location), "utf8");
-
-      console.log("Location saved to: " + path);
-    }
-    catch(e){
-      console.error(e);
-    }
-  }
-
-  const saveFile = async (filePath: string) => {
-    try{
-      // get image extension
-      const ext = filePath?.split(".").pop();
-
-      const path = `${DownloadDirectoryPath}/newImage.${ext}`;
-      const file = await readFile(filePath, "base64");
-
-      await writeFile(path, file, "base64");
-
-      console.log("File saved to: " + path);
-    }
-    catch(e){
-      console.error(e);
-    }
-  }
-
   const openImagePicker = () => {
     launchImageLibrary(
       {
@@ -190,43 +191,6 @@ export default function App() {
         else
           console.log("Camera Permission Denied");
 
-    }
-    catch(e){
-      console.warn(e);
-    }
-  }
-
-  const requestManageStoragePermission = async () => {
-
-    try{
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-        {
-          title: "Storage Permission",
-          message: "This app needs access to your storage to save images",
-          buttonNeutral: "Ask Me Later",
-          buttonNegative: "Cancel",
-          buttonPositive: "OK"
-        }
-      );
-
-      if(uri){
-        if(granted === PermissionsAndroid.RESULTS.GRANTED){
-          console.log("Storage Permission Granted");
-          await saveFile(uri);
-        }
-        else
-          console.log("Storage Permission Denied");
-      }
-
-      if(coords){
-        if(granted === PermissionsAndroid.RESULTS.GRANTED){
-          console.log("Storage Permission Granted");
-          await saveLocation(coords);
-        }
-        else
-          console.log("Storage Permission Denied");
-      }
     }
     catch(e){
       console.warn(e);
